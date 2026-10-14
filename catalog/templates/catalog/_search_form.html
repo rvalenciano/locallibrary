@@ -1,0 +1,13 @@
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    <input type="search" name="q" value="{{ q }}" class="form-control"
+      placeholder="{{ placeholder }}" aria-label="{{ placeholder }}">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-primary">Search</button>
+    {% if q %}<a href="{{ request.path }}" class="btn btn-link">Clear</a>{% endif %}
+  </div>
+</form>
+{% if q %}
+  <p>{{ paginator.count }} result{{ paginator.count|pluralize }} for “{{ q }}”.</p>
+{% endif %}
