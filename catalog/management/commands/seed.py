@@ -1,8 +1,9 @@
 from datetime import date, timedelta
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from catalog import search
 from catalog.models import Author, Book, BookInstance, Genre, Language
 
 GENRES = ["Science Fiction", "Fantasy", "Mystery", "Classic", "Poetry"]
@@ -48,6 +49,13 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        # Signals swallow indexing errors, so check up front rather than seed rows that never get indexed.
+        if not search.get_client().ping():
+            raise CommandError(
+                "OpenSearch is unreachable, so seeded books would not be searchable. "
+                "Start it with `docker compose up -d`, or run `python manage.py search_index` after seeding."
+            )
+
         if options["reset"]:
             self.reset()
 
