@@ -35,8 +35,6 @@ BOOKS = [
      "On a continent that suffers apocalyptic seasons, a mother searches for her daughter."),
 ]
 
-COPIES_PER_BOOK = 3
-
 
 class Command(BaseCommand):
     help = "Seed the database with sample catalog data (idempotent)."
@@ -69,17 +67,17 @@ class Command(BaseCommand):
         copies_created = 0
         for title, author, isbn, language, genre_names, summary in BOOKS:
             book, _ = Book.objects.get_or_create(
-                isbn=isbn,
+                title=title,
+                author=authors[author],
                 defaults={
-                    "title": title,
-                    "author": authors[author],
+                    "isbn": isbn,
                     "summary": summary,
                     "language": languages[language],
                 },
             )
             book.genre.add(*(genres[n] for n in genre_names))  # add() ignores existing links
 
-            for copy in range(1, COPIES_PER_BOOK + 1):
+            for copy in range(1, book.pk % 5 + 2):  # 1 to 5 copies
                 status = statuses[(book.pk + copy) % len(statuses)]
                 _, created = BookInstance.objects.get_or_create(
                     book=book,
