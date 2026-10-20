@@ -16,11 +16,11 @@ class Genre(models.Model):
         help_text="Enter a book genre (e.g. Science Fiction, French Poetry etc.)"
     )
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String for representing the Model object."""
         return self.name
 
-    def get_absolute_url(self):
+    def get_absolute_url(self) -> str:
         """Returns the url to access a particular genre instance."""
         return reverse('genre-detail', args=[str(self.pk)])
 
@@ -39,11 +39,11 @@ class Language(models.Model):
                             unique=True,
                             help_text="Enter the book's natural language (e.g. English, French, Japanese etc.)")
 
-    def get_absolute_url(self):
+    def get_absolute_url(self) -> str:
         """Returns the url to access a particular language instance."""
         return reverse('language-detail', args=[str(self.pk)])
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String for representing the Model object (in Admin site etc.)"""
         return self.name
 
@@ -79,11 +79,11 @@ class Book(models.Model):
     language = models.ForeignKey(
             'Language', on_delete=models.SET_NULL, null=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String for representing the Model object."""
         return self.title
 
-    def get_absolute_url(self):
+    def get_absolute_url(self) -> str:
         """Returns the URL to access a detail record for this book."""
         return reverse('book-detail', args=[str(self.pk)])
 
@@ -118,7 +118,7 @@ class BookInstance(models.Model):
     class Meta:
         ordering = ['due_back']
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String for representing the Model object."""
         return f'{self.id} ({self.book.title})'
 
@@ -132,10 +132,10 @@ class Author(models.Model):
     class Meta:
         ordering = ['last_name', 'first_name']
 
-    def get_absolute_url(self):
+    def get_absolute_url(self) -> str:
         """Returns the URL to access a particular author instance."""
         return reverse('author-detail', args=[str(self.pk)])
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String for representing the Model object."""
         return f'{self.last_name}, {self.first_name}'

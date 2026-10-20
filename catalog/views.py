@@ -1,4 +1,7 @@
-from django.db.models import Case, IntegerField, When
+from typing import Any
+
+from django.db.models import Case, IntegerField, QuerySet, When
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 # Create your views here.
@@ -6,7 +9,7 @@ from . import search
 from .models import Author, Book, BookInstance
 
 
-def index(request):
+def index(request: HttpRequest) -> HttpResponse:
     """View function for home page of site."""
 
     # Generate counts of some of the main objects
@@ -38,18 +41,19 @@ class SearchListView(generic.ListView):
     """List view that, given ?q=, shows the OpenSearch matches in relevance order."""
     paginate_by = 10
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Any]:
         queryset = super().get_queryset()
         self.query = self.request.GET.get('q', '').strip()
         if not self.query:
             return queryset
 
+        assert self.model is not None, 'SearchListView subclasses must set model'
         ids = search.search_ids(self.model, self.query)
         # Keep OpenSearch's relevance order: ORDER BY CASE WHEN pk = <id> THEN <rank> ...
         relevance = Case(*[When(pk=pk, then=rank) for rank, pk in enumerate(ids)], output_field=IntegerField())
         return queryset.filter(pk__in=ids).order_by(relevance)
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context['q'] = self.query
         return context
