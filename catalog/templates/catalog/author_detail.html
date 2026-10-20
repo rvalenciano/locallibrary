@@ -1,0 +1,30 @@
+{% extends "base_generic.html" %}
+
+{% block title %}
+  <title>{{ author.first_name }} {{ author.last_name }} | Local Library</title>
+{% endblock %}
+
+{% block content %}
+  <h1>{{ author.first_name }} {{ author.last_name }}</h1>
+
+  {% if author.date_of_birth or author.date_of_death %}
+    <p>
+      {% if author.date_of_birth %}Born {{ author.date_of_birth|date:"F j, Y" }}{% endif %}
+      {% if author.date_of_birth and author.date_of_death %} &ndash; {% endif %}
+      {% if author.date_of_death %}Died {{ author.date_of_death|date:"F j, Y" }}{% endif %}
+    </p>
+  {% endif %}
+
+  <h2>Books by this author</h2>
+  {% with books=author.book_set.all %}
+    {% if books %}
+      <ul>
+        {% for book in books %}
+          <li><a href="{{ book.get_absolute_url }}">{{ book.title }}</a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>There are no books by this author in the library.</p>
+    {% endif %}
+  {% endwith %}
+{% endblock %}
