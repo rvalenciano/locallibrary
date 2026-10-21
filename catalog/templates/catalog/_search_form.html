@@ -8,6 +8,11 @@
     {% if q %}<a href="{{ request.path }}" class="btn btn-link">Clear</a>{% endif %}
   </div>
 </form>
+{% if search_degraded %}
+  <div class="alert alert-warning" role="alert">
+    Search is temporarily unavailable. Showing basic matches only.
+  </div>
+{% endif %}
 {% if q %}
   <p>{{ paginator.count }} result{{ paginator.count|pluralize }} for “{{ q }}”.</p>
 {% endif %}
