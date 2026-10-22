@@ -1,10 +1,12 @@
 from typing import Any
 from unittest import mock
 
+from django.db import OperationalError
 from django.test import TestCase
 from django.urls import reverse
 from opensearchpy.exceptions import ConnectionError as OpenSearchConnectionError
 
+from catalog import search
 from catalog.models import Author, Book, Language
 
 
@@ -94,3 +96,47 @@ class SearchListTests(TestCase):
             response, search_ids = self.get('books', side_effect=self.down)
         search_ids.assert_not_called()
         self.assertNotContains(response, 'Search is temporarily unavailable')
+
+
+class ProbeTests(TestCase):
+    def functionalz(self, opensearch_up: bool = True, db_error: Exception | None = None) -> Any:
+        with (
+            mock.patch('catalog.search.is_up', return_value=opensearch_up),
+            mock.patch('catalog.middleware.connection.cursor', side_effect=db_error),
+        ):
+            return self.client.get('/functionalz/')
+
+    def test_healthz_is_200_without_touching_database_or_opensearch(self) -> None:
+        with (
+            mock.patch('catalog.search.is_up') as is_up,
+            mock.patch('catalog.middleware.connection.cursor', side_effect=AssertionError('db touched')),
+        ):
+            response = self.client.get('/healthz/')
+        self.assertEqual(response.status_code, 200)
+        is_up.assert_not_called()
+
+    def test_functionalz_is_200_when_database_answers(self) -> None:
+        self.assertEqual(self.functionalz().status_code, 200)
+
+    def test_functionalz_is_503_when_database_fails(self) -> None:
+        self.assertEqual(self.functionalz(db_error=OperationalError('db down')).status_code, 503)
+
+    def test_functionalz_reports_opensearch_up(self) -> None:
+        self.assertEqual(self.functionalz(opensearch_up=True).json()['opensearch'], 'up')
+
+    def test_functionalz_reports_opensearch_down_without_changing_status(self) -> None:
+        response = self.functionalz(opensearch_up=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['opensearch'], 'down')
+
+    def test_probes_ignore_allowed_hosts(self) -> None:
+        for path in ('/healthz/', '/functionalz/'):
+            with self.subTest(path=path), mock.patch('catalog.search.is_up', return_value=True):
+                response = self.client.get(path, headers={'host': '10.1.2.3'})
+                self.assertEqual(response.status_code, 200)
+
+    def test_is_up_is_false_when_cluster_unreachable(self) -> None:
+        client = mock.Mock()
+        client.ping.side_effect = OpenSearchConnectionError('N/A', 'unreachable', OSError('refused'))
+        with mock.patch('catalog.search.get_client', return_value=client):
+            self.assertFalse(search.is_up())

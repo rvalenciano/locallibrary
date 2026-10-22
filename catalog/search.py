@@ -47,6 +47,14 @@ def get_client() -> OpenSearch:
     return OpenSearch(hosts=[settings.OPENSEARCH_URL], timeout=5)
 
 
+def is_up() -> bool:
+    """Whether the cluster answers a ping. Never raises."""
+    try:
+        return bool(get_client().ping())
+    except OpenSearchException:
+        return False
+
+
 def index_name(model: type[Model]) -> str:
     return f"catalog-{model._meta.model_name}"
 
