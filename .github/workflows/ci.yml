@@ -35,3 +35,18 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
       - run: uv run --locked python manage.py test
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: locallibrary:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - run: .github/scripts/smoke-test.sh locallibrary:ci
