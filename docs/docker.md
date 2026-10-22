@@ -58,6 +58,7 @@ docker run --rm --env-file .env locallibrary python manage.py migrate
 docker run --rm --env-file .env locallibrary python manage.py search_index
 ```
 
+- Outside the image, `manage.py` defaults `DJANGO_DEBUG` to on. Any non-local host or CI step that runs `manage.py` commands (`migrate`, `check --deploy`, `collectstatic`) must set `DJANGO_DEBUG=0` and a real `SECRET_KEY` explicitly.
 - `migrate` applies database migrations. Because old and new pods run side by side during a rolling deploy, migrations must be backward-compatible with the previous release (e.g. add columns before using them, drop them in a later release).
 - `search_index` rebuilds the OpenSearch indexes (`catalog-book`, `catalog-author`) from the database. It fails with a `CommandError` if OpenSearch is unreachable, so run it only once OpenSearch is up. Run it after the first deploy and whenever the index needs rebuilding.
 

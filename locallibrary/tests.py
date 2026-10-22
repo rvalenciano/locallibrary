@@ -9,18 +9,30 @@ from django.test import SimpleTestCase
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def run_clean(args: list[str], **env: str) -> subprocess.CompletedProcess[str]:
+    """Run Python in a child process whose environment has only `env` for the app's variables."""
+    clean = {
+        k: v
+        for k, v in os.environ.items()
+        if not k.startswith(('DJANGO_', 'SECRET_KEY')) and k != 'DATABASE_URL'
+    }
+    clean.update(env)
+    return subprocess.run([sys.executable, *args], cwd=BASE_DIR, env=clean, capture_output=True, text=True, check=False)
+
+
 def load_settings(**env: str) -> subprocess.CompletedProcess[str]:
     """Import the settings module in a clean process with only `env` set."""
-    clean = {k: v for k, v in os.environ.items() if not k.startswith(('DJANGO_', 'SECRET_KEY'))}
-    clean.update(env)
     code = (
         'import json; from locallibrary import settings as s; '
         'print(json.dumps({"debug": s.DEBUG, "key": s.SECRET_KEY, "hosts": s.ALLOWED_HOSTS, '
         '"csrf": s.CSRF_TRUSTED_ORIGINS, "proto": getattr(s, "SECURE_PROXY_SSL_HEADER", None)}))'
     )
-    return subprocess.run(
-        [sys.executable, '-c', code], cwd=BASE_DIR, env=clean, capture_output=True, text=True, check=False
-    )
+    return run_clean(['-c', code], **env)
+
+
+def manage(*args: str, **env: str) -> subprocess.CompletedProcess[str]:
+    """Run manage.py in a clean process with only `env` set."""
+    return run_clean(['manage.py', *args], **env)
 
 
 class EnvDrivenSettingsTests(SimpleTestCase):
@@ -56,19 +68,12 @@ class EnvDrivenSettingsTests(SimpleTestCase):
         self.assertTrue(data['debug'])
         self.assertTrue(data['key'].startswith('django-insecure-'))
 
-    def manage(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
-        clean = {k: v for k, v in os.environ.items() if not k.startswith(('DJANGO_', 'SECRET_KEY'))}
-        clean.update(env)
-        return subprocess.run(
-            [sys.executable, 'manage.py', *args], cwd=BASE_DIR, env=clean, capture_output=True, text=True, check=False
-        )
-
     def test_manage_py_runs_any_command_in_dev_mode_with_no_env(self) -> None:
-        result = self.manage('check')
+        result = manage('check')
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_manage_py_explicit_debug_off_without_secret_key_fails_fast(self) -> None:
-        result = self.manage('check', DJANGO_DEBUG='0')
+        result = manage('check', DJANGO_DEBUG='0')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('SECRET_KEY', result.stderr)
 

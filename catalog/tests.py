@@ -151,7 +151,9 @@ class ProbeTests(TestCase):
         self.assertLessEqual(kwargs['timeout'], 1)
 
     def test_functionalz_is_503_for_any_database_exception(self) -> None:
-        self.assertEqual(self.functionalz(db_error=RuntimeError('boom')).status_code, 503)
+        with self.assertLogs('catalog.middleware', level='WARNING'):
+            response = self.functionalz(db_error=RuntimeError('boom'))
+        self.assertEqual(response.status_code, 503)
 
     def test_probes_accept_paths_without_trailing_slash(self) -> None:
         for path in ('/healthz', '/functionalz'):

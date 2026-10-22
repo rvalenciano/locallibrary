@@ -20,7 +20,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# DJANGO_DEBUG is intentionally unset so DEBUG is off.
+# DJANGO_DEBUG is not passed: the image pins DJANGO_DEBUG=0, so DEBUG is off.
 docker run -d --name "$name" -p "${port}:8000" \
   -e SECRET_KEY=ci-smoke-test-key \
   -e DJANGO_ALLOWED_HOSTS=localhost \
@@ -45,26 +45,26 @@ if [ "$ready" -ne 1 ]; then
   exit 1
 fi
 
+# Usage: check_status <path> [extra curl header, e.g. 'Host: other.example']
 check_status() {
-  local path="$1" code
-  code=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' "${base}${path}" || true)
+  local path="$1" header="${2:-}" code label="$1"
+  local args=()
+  if [ -n "$header" ]; then
+    args=(-H "$header")
+    label="${path} with header '${header}'"
+  fi
+  code=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' ${args[@]+"${args[@]}"} "${base}${path}" || true)
   if [ "$code" != "200" ]; then
-    echo "FAIL ${path}: expected 200, got ${code}" >&2
+    echo "FAIL ${label}: expected 200, got ${code}" >&2
     exit 1
   fi
-  echo "ok ${path} -> 200"
+  echo "ok ${label} -> 200"
 }
 
 check_status /healthz/
 check_status /static/css/styles.css
-
 # Probes must answer before host validation (kubelet probes use the pod IP as Host).
-code=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' -H 'Host: not-allowed.example' "${base}/healthz/" || true)
-if [ "$code" != "200" ]; then
-  echo "FAIL /healthz/ with disallowed Host: expected 200, got ${code}" >&2
-  exit 1
-fi
-echo "ok /healthz/ with disallowed Host -> 200"
+check_status /healthz/ 'Host: not-allowed.example'
 
 # Readiness: the database must be up. OpenSearch is expected to be down here and must not matter.
 body=$(curl -s --max-time 10 -w '\n%{http_code}' "${base}/functionalz/" || true)
