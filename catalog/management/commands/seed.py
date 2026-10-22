@@ -1,4 +1,6 @@
+from argparse import ArgumentParser
 from datetime import date, timedelta
+from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -254,7 +256,7 @@ BOOKS = [
 class Command(BaseCommand):
     help = "Seed the database with sample catalog data (idempotent)."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
             "--reset",
             action="store_true",
@@ -262,7 +264,7 @@ class Command(BaseCommand):
         )
 
     @transaction.atomic
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         # Signals swallow indexing errors, so check up front rather than seed rows that never get indexed.
         if not search.get_client().ping():
             raise CommandError(
@@ -276,7 +278,7 @@ class Command(BaseCommand):
         genres = {n: Genre.objects.get_or_create(name=n)[0] for n in GENRES}
         languages = {n: Language.objects.get_or_create(name=n)[0] for n in LANGUAGES}
 
-        authors = {}
+        authors: dict[str, Author] = {}
         for first, last, born, died in AUTHORS:
             authors[last], _ = Author.objects.get_or_create(
                 first_name=first,
@@ -317,7 +319,7 @@ class Command(BaseCommand):
             f"{BookInstance.objects.count()} copies ({copies_created} new)."
         ))
 
-    def reset(self):
+    def reset(self) -> None:
         # Children first: Book/BookInstance foreign keys use on_delete=RESTRICT.
         BookInstance.objects.all().delete()
         Book.objects.all().delete()

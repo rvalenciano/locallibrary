@@ -6,3 +6,9 @@ repos:
         entry: uv run --locked ruff check
         language: system
         types: [python]
+      - id: basedpyright
+        name: basedpyright
+        entry: uv run --locked basedpyright
+        language: system
+        types: [python]
+        pass_filenames: false
