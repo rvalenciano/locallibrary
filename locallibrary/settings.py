@@ -31,12 +31,11 @@ DEBUG = os.environ.get('DJANGO_DEBUG', '').lower() in ('1', 'true', 'yes', 'on')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # The insecure key is only a development fallback; it is refused when DEBUG is off.
-if DEBUG:
-    SECRET_KEY = os.environ.get(
-        'SECRET_KEY', 'django-insecure-z%#b^^5xjd7s=5303l%lsn&8r!i45zr!$g-ky50nlgu0w&w6jf'
-    )
-elif os.environ.get('SECRET_KEY'):
+# An empty value counts as unset.
+if os.environ.get('SECRET_KEY'):
     SECRET_KEY = os.environ['SECRET_KEY']
+elif DEBUG:
+    SECRET_KEY = 'django-insecure-z%#b^^5xjd7s=5303l%lsn&8r!i45zr!$g-ky50nlgu0w&w6jf'
 else:
     raise RuntimeError('SECRET_KEY environment variable is required when DJANGO_DEBUG is off.')
 
@@ -100,6 +99,9 @@ DATABASES = {
         default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
     )
 }
+if DATABASES['default'].get('ENGINE') == 'django.db.backends.postgresql':
+    # Fail fast instead of hanging on an unreachable database host.
+    DATABASES['default'].setdefault('OPTIONS', {}).setdefault('connect_timeout', 5)
 
 
 # Password validation

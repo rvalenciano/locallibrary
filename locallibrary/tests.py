@@ -29,6 +29,12 @@ class EnvDrivenSettingsTests(SimpleTestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('SECRET_KEY', result.stderr)
 
+    def test_empty_secret_key_is_treated_as_unset(self) -> None:
+        self.assertNotEqual(load_settings(SECRET_KEY='').returncode, 0)
+        result = load_settings(SECRET_KEY='', DJANGO_DEBUG='1')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(json.loads(result.stdout)['key'].startswith('django-insecure-'))
+
     def test_debug_off_with_secret_key_uses_env_values(self) -> None:
         result = load_settings(
             SECRET_KEY='s3cret',

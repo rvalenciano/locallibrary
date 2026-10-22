@@ -58,6 +58,24 @@ check_status() {
 check_status /healthz/
 check_status /static/css/styles.css
 
+# Probes must answer before host validation (kubelet probes use the pod IP as Host).
+code=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' -H 'Host: not-allowed.example' "${base}/healthz/" || true)
+if [ "$code" != "200" ]; then
+  echo "FAIL /healthz/ with disallowed Host: expected 200, got ${code}" >&2
+  exit 1
+fi
+echo "ok /healthz/ with disallowed Host -> 200"
+
+# Readiness: the database must be up. OpenSearch is expected to be down here and must not matter.
+body=$(curl -s --max-time 10 -w '\n%{http_code}' "${base}/functionalz/" || true)
+code="${body##*$'\n'}"
+body="${body%$'\n'*}"
+if [ "$code" != "200" ] || ! printf '%s' "$body" | grep -Eq '"database": *"up"'; then
+  echo "FAIL /functionalz/: expected 200 with database up, got ${code}: ${body}" >&2
+  exit 1
+fi
+echo "ok /functionalz/ -> 200 ${body}"
+
 uid=$(docker exec "$name" id -u)
 if [ "$uid" = "0" ]; then
   echo "FAIL: container process runs as root" >&2
