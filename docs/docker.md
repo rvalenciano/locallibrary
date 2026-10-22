@@ -25,7 +25,7 @@ The app does not load `.env` files. The runtime must inject the variables. `.env
 |---|---|---|---|
 | `SECRET_KEY` | Yes, unless `DJANGO_DEBUG` is on | none (startup fails) | Django secret key. An insecure development fallback exists only when `DJANGO_DEBUG` is on; never rely on it in production. |
 | `DATABASE_URL` | No | SQLite `db.sqlite3` | Database URL, a Postgres URL. |
-| `DJANGO_DEBUG` | No | off | `1`/`true`/`yes`/`on` enables debug. Leave off in production. |
+| `DJANGO_DEBUG` | No | `0` in the image | `1`/`true`/`yes`/`on` enables debug. The image sets `DJANGO_DEBUG=0` and `settings.py` defaults to off, but `manage.py` defaults to on for local development when unset. Do not override it to `1` in production. |
 | `DJANGO_ALLOWED_HOSTS` | Yes in production | empty | Comma-separated hostnames Django will serve. Empty with debug off means every request except the probes is rejected with 400. |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | When behind TLS | empty | Comma-separated origins including scheme. |
 | `DJANGO_TRUST_PROXY_PROTO` | Behind a TLS-terminating proxy | off | `1`/`true`/`yes`/`on` makes Django trust `X-Forwarded-Proto`. |

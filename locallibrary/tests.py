@@ -56,6 +56,22 @@ class EnvDrivenSettingsTests(SimpleTestCase):
         self.assertTrue(data['debug'])
         self.assertTrue(data['key'].startswith('django-insecure-'))
 
+    def manage(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
+        clean = {k: v for k, v in os.environ.items() if not k.startswith(('DJANGO_', 'SECRET_KEY'))}
+        clean.update(env)
+        return subprocess.run(
+            [sys.executable, 'manage.py', *args], cwd=BASE_DIR, env=clean, capture_output=True, text=True, check=False
+        )
+
+    def test_manage_py_runs_any_command_in_dev_mode_with_no_env(self) -> None:
+        result = self.manage('check')
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_manage_py_explicit_debug_off_without_secret_key_fails_fast(self) -> None:
+        result = self.manage('check', DJANGO_DEBUG='0')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('SECRET_KEY', result.stderr)
+
     def test_proxy_proto_header_is_opt_in(self) -> None:
         result = load_settings(SECRET_KEY='k', DJANGO_TRUST_PROXY_PROTO='1')
         self.assertEqual(result.returncode, 0, result.stderr)

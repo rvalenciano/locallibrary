@@ -19,12 +19,13 @@ COPY locallibrary ./locallibrary
 COPY catalog ./catalog
 
 # Throwaway key: only needed so settings import; never persisted as runtime config.
-RUN SECRET_KEY=build-only-throwaway /opt/venv/bin/python manage.py collectstatic --noinput
+RUN DJANGO_DEBUG=0 SECRET_KEY=build-only-throwaway /opt/venv/bin/python manage.py collectstatic --noinput
 
 
 FROM python:${PYTHON_VERSION}-slim
 
 ENV PATH="/opt/venv/bin:$PATH" \
+    DJANGO_DEBUG=0 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
