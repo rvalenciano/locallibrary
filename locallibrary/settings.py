@@ -22,13 +22,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-z%#b^^5xjd7s=5303l%lsn&8r!i45zr!$g-ky50nlgu0w&w6jf'
+def env_list(name: str) -> list[str]:
+    return [item.strip() for item in os.environ.get(name, '').split(',') if item.strip()]
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', '').lower() in ('1', 'true', 'yes', 'on')
 
-ALLOWED_HOSTS = []
+# SECURITY WARNING: keep the secret key used in production secret!
+# The insecure key is only a development fallback; it is refused when DEBUG is off.
+if DEBUG:
+    SECRET_KEY = os.environ.get(
+        'SECRET_KEY', 'django-insecure-z%#b^^5xjd7s=5303l%lsn&8r!i45zr!$g-ky50nlgu0w&w6jf'
+    )
+elif os.environ.get('SECRET_KEY'):
+    SECRET_KEY = os.environ['SECRET_KEY']
+else:
+    raise RuntimeError('SECRET_KEY environment variable is required when DJANGO_DEBUG is off.')
+
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS')
+CSRF_TRUSTED_ORIGINS = env_list('DJANGO_CSRF_TRUSTED_ORIGINS')
+
+# Opt-in: trust the ingress/proxy's X-Forwarded-Proto header (TLS terminated upstream).
+if os.environ.get('DJANGO_TRUST_PROXY_PROTO', '').lower() in ('1', 'true', 'yes', 'on'):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
