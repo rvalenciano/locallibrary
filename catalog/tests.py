@@ -138,5 +138,30 @@ class ProbeTests(TestCase):
     def test_is_up_is_false_when_cluster_unreachable(self) -> None:
         client = mock.Mock()
         client.ping.side_effect = OpenSearchConnectionError('N/A', 'unreachable', OSError('refused'))
-        with mock.patch('catalog.search.get_client', return_value=client):
+        with mock.patch('catalog.search.get_ping_client', return_value=client):
             self.assertFalse(search.is_up())
+
+    def test_is_up_uses_a_fast_client_without_retries(self) -> None:
+        search.get_ping_client.cache_clear()
+        self.addCleanup(search.get_ping_client.cache_clear)
+        with mock.patch('catalog.search.OpenSearch') as opensearch:
+            search.is_up()
+        kwargs = opensearch.call_args.kwargs
+        self.assertEqual(kwargs['max_retries'], 0)
+        self.assertLessEqual(kwargs['timeout'], 1)
+
+    def test_functionalz_is_503_for_any_database_exception(self) -> None:
+        with self.assertLogs('catalog.middleware', level='WARNING'):
+            response = self.functionalz(db_error=RuntimeError('boom'))
+        self.assertEqual(response.status_code, 503)
+
+    def test_probes_accept_paths_without_trailing_slash(self) -> None:
+        for path in ('/healthz', '/functionalz'):
+            with self.subTest(path=path), mock.patch('catalog.search.is_up', return_value=True):
+                response = self.client.get(path, headers={'host': '10.1.2.3'})
+                self.assertEqual(response.status_code, 200)
+
+    def test_probes_ignore_query_string(self) -> None:
+        with mock.patch('catalog.search.is_up', return_value=True):
+            response = self.client.get('/functionalz/?x=1', headers={'host': '10.1.2.3'})
+        self.assertEqual(response.status_code, 200)

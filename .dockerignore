@@ -18,3 +18,5 @@ Dockerfile
 .dockerignore
 .env*
 *.sqlite3
+**/tests.py
+**/test_*.py

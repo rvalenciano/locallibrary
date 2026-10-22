@@ -47,10 +47,17 @@ def get_client() -> OpenSearch:
     return OpenSearch(hosts=[settings.OPENSEARCH_URL], timeout=5)
 
 
+@cache
+def get_ping_client() -> OpenSearch:
+    """A separate client for health probes: short timeout, no retries, so a blackholed cluster
+    cannot make a probe slower than the kubelet's own timeout."""
+    return OpenSearch(hosts=[settings.OPENSEARCH_URL], timeout=1, max_retries=0)
+
+
 def is_up() -> bool:
     """Whether the cluster answers a ping. Never raises."""
     try:
-        return bool(get_client().ping())
+        return bool(get_ping_client().ping())
     except OpenSearchException:
         return False
 
