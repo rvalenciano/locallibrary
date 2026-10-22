@@ -9,3 +9,6 @@ db.sqlite3
 
 # Local environment
 .env
+
+# Collected static files
+staticfiles/
