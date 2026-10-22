@@ -6,11 +6,12 @@ field in a document is searchable without declaring a schema.
 """
 import logging
 from collections.abc import Callable
-from functools import cache
+from functools import cache, reduce
+from operator import or_
 from typing import Any
 
 from django.conf import settings
-from django.db.models import Model, QuerySet
+from django.db.models import Model, Q, QuerySet
 from opensearchpy import OpenSearch, helpers
 from opensearchpy.exceptions import OpenSearchException
 
@@ -93,3 +94,18 @@ def search_ids(model: type[Model], query: str, size: int = 10_000) -> list[int]:
     }
     response = get_client().search(index=index_name(model), body=body)
     return [int(hit["_id"]) for hit in response["hits"]["hits"]]
+
+
+FALLBACK_FIELDS: dict[type[Model], tuple[str, ...]] = {
+    Book: ("title", "summary", "isbn", "author__first_name", "author__last_name", "genre__name", "language__name"),
+    Author: ("first_name", "last_name"),
+}
+
+def fallback_queryset(model: type[Model], queryset: QuerySet, query: str) -> QuerySet[Book|Author]:
+    """Database-only search for when OpenSearch is down: every term must match some field.
+
+    There is no relevance ranking or typo tolerance here, so rows keep the view's ordering.
+    """
+    for term in query.split():
+        queryset = queryset.filter(reduce(or_, (Q(**{f"{field}__icontains": term}) for field in FALLBACK_FIELDS[model])))
+    return queryset.distinct()
