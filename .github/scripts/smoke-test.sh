@@ -29,12 +29,13 @@ docker run -d --name "$name" -p "${port}:8000" \
 echo "Waiting for readiness..."
 ready=0
 for _ in $(seq 1 30); do
-  if curl -fsS -o /dev/null "${base}/healthz/" 2>/dev/null; then
+  if curl -fsS --max-time 5 -o /dev/null "${base}/healthz/" 2>/dev/null; then
     ready=1
     break
   fi
-  if [ "$(docker inspect -f '{{.State.Running}}' "$name")" != "true" ]; then
-    echo "Container exited before becoming ready" >&2
+  running=$(docker inspect -f '{{.State.Running}}' "$name" 2>/dev/null || echo missing)
+  if [ "$running" != "true" ]; then
+    echo "Container is not running (state: ${running}) before becoming ready" >&2
     exit 1
   fi
   sleep 1
@@ -46,7 +47,7 @@ fi
 
 check_status() {
   local path="$1" code
-  code=$(curl -s -o /dev/null -w '%{http_code}' "${base}${path}")
+  code=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' "${base}${path}" || true)
   if [ "$code" != "200" ]; then
     echo "FAIL ${path}: expected 200, got ${code}" >&2
     exit 1
