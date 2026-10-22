@@ -1,4 +1,6 @@
-FROM python:3.14-slim AS builder
+ARG PYTHON_VERSION=3.14.9
+
+FROM python:${PYTHON_VERSION}-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
 
@@ -20,7 +22,7 @@ COPY catalog ./catalog
 RUN SECRET_KEY=build-only-throwaway /opt/venv/bin/python manage.py collectstatic --noinput
 
 
-FROM python:3.14-slim
+FROM python:${PYTHON_VERSION}-slim
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
@@ -37,4 +39,6 @@ EXPOSE 8000
 
 # Starts the server only; run `migrate` / `search_index` as one-off command overrides.
 # WEB_CONCURRENCY is read natively by uvicorn (default 1).
-CMD ["uvicorn", "locallibrary.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# Operators must set FORWARDED_ALLOW_IPS to the ingress/proxy address or CIDR;
+# otherwise uvicorn trusts forwarded headers only from 127.0.0.1.
+CMD ["uvicorn", "locallibrary.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

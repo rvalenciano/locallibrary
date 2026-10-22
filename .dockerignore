@@ -16,3 +16,5 @@ __pycache__
 docker-compose.yml
 Dockerfile
 .dockerignore
+.env*
+*.sqlite3
