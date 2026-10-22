@@ -7,6 +7,7 @@ dependencies = [
     "django>=6.1.2",
     "opensearch-py>=3.2.0",
     "psycopg[binary]>=3.3.6",
+    "uvicorn>=0.54.0",
     "whitenoise>=6.12.0",
 ]
 
