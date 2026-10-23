@@ -141,6 +141,12 @@ class Browser:
     def click(self, selector: str) -> None:
         self._run("click", selector)
 
+    def fill(self, selector: str, value: str) -> None:
+        self._run("fill", selector, value)
+
+    def wait_for_url(self, pattern: str) -> None:
+        self._run("wait", "--url", pattern)
+
     def url(self) -> str:
         return self._run("get", "url").strip()
 
