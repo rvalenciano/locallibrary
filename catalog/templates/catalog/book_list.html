@@ -2,8 +2,6 @@
 
 {% block content %}
   <h1>Book List</h1>
-  {% include "catalog/_search_form.html" with placeholder="Search books by title, author, genre, language, ISBN…" %}
-
   {% if book_list %}
     <ul>
       {% for book in book_list %}
@@ -13,8 +11,6 @@
       </li>
       {% endfor %}
     </ul>
-  {% elif q %}
-    <p>No books match your search.</p>
   {% else %}
     <p>There are no books in the library.</p>
   {% endif %}

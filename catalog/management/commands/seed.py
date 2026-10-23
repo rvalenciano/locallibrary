@@ -1,7 +1,9 @@
+import os
 from argparse import ArgumentParser
 from datetime import date, timedelta
 from typing import Any
 
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -33,6 +35,16 @@ AUTHORS = [
     ("Miguel de", "Cervantes", date(1547, 9, 29), date(1616, 4, 22)),
     ("Isabel", "Allende", date(1942, 8, 2), None),
 ]
+
+USERS = [
+    # (username, first_name, last_name)
+    ("alice", "Alice", "Anderson"),
+    ("bob", "Bob", "Baker"),
+    ("carol", "Carol", "Chen"),
+    ("dave", "Dave", "Diaz"),
+    ("erin", "Erin", "Evans"),
+]
+SEED_PASSWORD_ENV = "SEED_USER_PASSWORD"
 
 BOOKS = [
     # (title, author last_name, isbn, language, genres, summary)
@@ -252,6 +264,10 @@ BOOKS = [
      "Una periodista y un fotógrafo descubren un crimen durante una dictadura."),
 ]
 
+from django.contrib.auth.models import Group, Permission, User
+
+LIBRARIAN_GROUP = "Librarians"
+LIBRARIAN_USERNAME = "libby"
 
 class Command(BaseCommand):
     help = "Seed the database with sample catalog data (idempotent)."
@@ -272,6 +288,13 @@ class Command(BaseCommand):
                 "Start it with `docker compose up -d`, or run `python manage.py search_index` after seeding."
             )
 
+        password = os.environ.get(SEED_PASSWORD_ENV)
+        if not password:
+            raise CommandError(
+                f"{SEED_PASSWORD_ENV} is not set. It is the password given to every seeded user, "
+                f"e.g. `{SEED_PASSWORD_ENV}=... python manage.py seed`."
+            )
+
         if options["reset"]:
             self.reset()
 
@@ -286,7 +309,37 @@ class Command(BaseCommand):
                 defaults={"date_of_birth": born, "date_of_death": died},
             )
 
+        user_model = get_user_model()
+        borrowers = []
+        for username, first, last in USERS:
+            user, created = user_model.objects.get_or_create(
+                username=username,
+                defaults={"first_name": first, "last_name": last, "email": f"{username}@example.com"},
+            )
+            if created:
+                user.set_password(password)
+                user.save()
+            borrowers.append(user)
+
+        permission = Permission.objects.get(
+            content_type__app_label="catalog",
+            codename="can_mark_returned",
+        )
+
+        librarians, _ = Group.objects.get_or_create(name=LIBRARIAN_GROUP)
+        librarians.permissions.add(permission)  # add() is idempotent
+
+        librarian, created = User.objects.get_or_create(
+            username=LIBRARIAN_USERNAME,
+            defaults={"first_name": "Libby", "last_name": "Librarian", "email": "libby@example.com"},
+        )
+        if created:
+            librarian.set_password(password)
+            librarian.save()
+        librarian.groups.add(librarians)
+
         today = date.today()
+        loans = 0
         statuses = ["a", "o", "m", "r"]
         copies_created = 0
         for title, author, isbn, language, genre_names, summary in BOOKS:
@@ -303,7 +356,7 @@ class Command(BaseCommand):
 
             for copy in range(1, book.pk % 5 + 2):  # 1 to 5 copies
                 status = statuses[(book.pk + copy) % len(statuses)]
-                _, created = BookInstance.objects.get_or_create(
+                instance, created = BookInstance.objects.get_or_create(
                     book=book,
                     imprint=f"First edition, copy {copy}",
                     defaults={
@@ -313,11 +366,19 @@ class Command(BaseCommand):
                 )
                 copies_created += created
 
+                # Hand on-loan copies out round-robin; leave any existing borrower alone.
+                if instance.status == "o" and instance.borrower is None:
+                    instance.borrower = borrowers[loans % len(borrowers)]
+                    instance.save(update_fields=["borrower"])
+                    loans += 1
+
         self.stdout.write(self.style.SUCCESS(
             f"Seeded: {Genre.objects.count()} genres, {Language.objects.count()} languages, "
             f"{Author.objects.count()} authors, {Book.objects.count()} books, "
-            f"{BookInstance.objects.count()} copies ({copies_created} new)."
+            f"{BookInstance.objects.count()} copies ({copies_created} new), "
+            f"{len(borrowers)} users ({loans} loans handed out)."
         ))
+        self.stdout.write(f"Seed users: {', '.join(u for u, _, _ in USERS)}, {LIBRARIAN_USERNAME} (password: ${SEED_PASSWORD_ENV})")
 
     def reset(self) -> None:
         # Children first: Book/BookInstance foreign keys use on_delete=RESTRICT.
@@ -326,4 +387,5 @@ class Command(BaseCommand):
         Author.objects.all().delete()
         Genre.objects.all().delete()
         Language.objects.all().delete()
+        get_user_model().objects.filter(username__in=[u for u, _, _ in USERS]  + [LIBRARIAN_USERNAME]).delete()
         self.stdout.write("Existing catalog data deleted.")

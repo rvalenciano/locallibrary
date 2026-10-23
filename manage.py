@@ -7,6 +7,13 @@ import sys
 def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'locallibrary.settings')
+    # python-dotenv is a dev-only dependency; the image injects its env at runtime instead.
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        pass
+    else:
+        load_dotenv()  # real environment variables win over .env
     # Local dev works with no setup: every command runs with debug on unless set explicitly.
     # settings.py itself defaults to off, and the Docker image sets DJANGO_DEBUG=0.
     os.environ.setdefault('DJANGO_DEBUG', '1')
