@@ -1,6 +1,7 @@
 """Environment and helpers for the e2e smoke harness. See e2e/README.md."""
 
 import contextlib
+import json
 import os
 import re
 import shutil
@@ -126,6 +127,35 @@ class Browser:
         )
         if result.returncode != 0:
             raise AssertionFailure(f"page {path} opens", result.stderr or result.stdout)
+
+    def _run(self, *args: str) -> str:
+        result = subprocess.run(
+            check=False, args=["agent-browser", *args], capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            raise AssertionFailure(
+                f"`agent-browser {' '.join(args)}` succeeds", result.stderr
+            )
+        return result.stdout
+
+    def click(self, selector: str) -> None:
+        self._run("click", selector)
+
+    def url(self) -> str:
+        return self._run("get", "url").strip()
+
+    def heading(self) -> str:
+        return self._run("get", "text", "h1").strip()
+
+    def eval_json(self, script: str) -> object:
+        return json.loads(self._run("eval", script))
+
+    def link_texts(self, selector: str) -> list[str]:
+        """Text of every element matching the CSS selector, in page order."""
+        script = f"[...document.querySelectorAll({json.dumps(selector)})].map(e => e.textContent.trim())"
+        texts = self.eval_json(script)
+        assert isinstance(texts, list)
+        return [str(text) for text in texts]
 
     def text(self) -> str:
         result = subprocess.run(
