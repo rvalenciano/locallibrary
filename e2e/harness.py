@@ -18,7 +18,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OPENSEARCH_HEALTH_URL = os.environ.get(
-    "OPENSEARCH_HEALTH_URL", "http://localhost:9200/_cluster/health"
+    "OPENSEARCH_HEALTH_URL",
+    "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s",
 )
 OPENSEARCH_CONTAINER = "locallibrary-opensearch"
 PREREQUISITES = ("agent-browser", "docker", "uv")
@@ -87,11 +88,36 @@ def start_opensearch() -> None:
         != 0
     ):
         raise SetupError(f"`{' '.join(command)}` failed")
+    wait_for_opensearch()
+
+
+def wait_for_opensearch() -> None:
     for _ in range(60):
         if _healthy(OPENSEARCH_HEALTH_URL):
             return
         time.sleep(2)
     raise SetupError("OpenSearch did not become healthy within 120s")
+
+
+@contextlib.contextmanager
+def opensearch_stopped() -> Iterator[None]:
+    """Stop the shared OpenSearch container; always restart it and wait for health."""
+    log("stopping OpenSearch")
+    stop = subprocess.run(
+        check=False, args=["docker", "stop", OPENSEARCH_CONTAINER], capture_output=True
+    )
+    if stop.returncode != 0:
+        raise SetupError(f"could not stop container {OPENSEARCH_CONTAINER}")
+    try:
+        yield
+    finally:
+        log("restarting OpenSearch")
+        subprocess.run(
+            check=False,
+            args=["docker", "start", OPENSEARCH_CONTAINER],
+            capture_output=True,
+        )
+        wait_for_opensearch()
 
 
 def _free_port() -> int:
