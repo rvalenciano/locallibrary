@@ -9,15 +9,25 @@ dependencies = [
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
+pythonVersion = "3.14"
 venvPath = "."
 venv = ".venv"
 
 [tool.ruff.lint]
 extend-ignore = ["RUF012"]
 
+[tool.coverage.run]
+source = ["."]
+omit = [".venv/*", "*/migrations/*", "manage.py", "e2e/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 60
+
 [dependency-groups]
 dev = [
     "basedpyright>=1.40.2",
+    "coverage>=7.17.0",
     "django-stubs>=6.1.2",
     "pre-commit>=4.7.0",
     "ruff>=0.17.1",
