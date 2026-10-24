@@ -99,7 +99,7 @@ def _stale(obj: Model) -> dict[type[Model], list[Model]]:
     return stale
 
 
-def sync(obj: Model) -> None:
+def update(obj: Model) -> None:
     """Write the documents made stale by a change to `obj`, one batch per index.
 
     Never raises: a search outage must not break saves.
@@ -112,17 +112,17 @@ def sync(obj: Model) -> None:
 
 
 def remove(obj: Model) -> None:
-    """Drop `obj`'s document. Never raises, for the same reason as `sync`."""
+    """Drop `obj`'s document. Never raises, for the same reason as `update`."""
     try:
         _index.delete(type(obj), obj.pk)
     except OpenSearchException:
         logger.warning("Could not delete %r from OpenSearch", obj, exc_info=True)
 
 
-def sync_all(model: type[Model]) -> int:
+def rebuild(model: type[Model]) -> int:
     """Drop and recreate the model's index, then write every row. Returns the count.
 
-    Unlike `sync`, this raises when the cluster is unreachable so the caller can report it.
+    Unlike `update`, this raises when the cluster is unreachable so the caller can report it.
     """
     rows = _books() if model is Book else model._default_manager.all()
     _index.recreate(model)

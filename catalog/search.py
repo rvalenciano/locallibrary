@@ -3,7 +3,7 @@
 The database stays the source of truth; OpenSearch holds a searchable copy of
 each Book and Author. Indexes use OpenSearch's dynamic mapping, so every string
 field in a document is searchable without declaring a schema. This module reads;
-`index_sync` writes.
+`indexing` writes.
 """
 from functools import cache, reduce
 from operator import or_

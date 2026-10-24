@@ -1,15 +1,15 @@
 from django.test import TestCase
 
-from catalog import index_sync
+from catalog import indexing
 from catalog.models import Author, Book, Genre, Language
 
 from .fakes import FakeIndex
 
 
-class IndexSyncSignalTests(TestCase):
+class IndexingSignalTests(TestCase):
     def setUp(self) -> None:
         self.index = FakeIndex()
-        self.enterContext(index_sync.use_index(self.index))
+        self.enterContext(indexing.use_index(self.index))
 
     def test_saving_a_book_indexes_its_document(self) -> None:
         author = Author.objects.create(first_name='Isaac', last_name='Asimov')
