@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 from opensearchpy.exceptions import ConnectionError as OpenSearchConnectionError
 
-from catalog import index_sync
+from catalog import indexing
 from catalog.models import Author, Book, Language
 
 from .fakes import FakeIndex
@@ -16,7 +16,7 @@ class SearchListTests(TestCase):
     def setUpClass(cls) -> None:
         # Never touch a real cluster from tests. This must be in place before setUpTestData
         # runs, because creating a Book or Author writes to the index.
-        cls.enterClassContext(index_sync.use_index(FakeIndex()))
+        cls.enterClassContext(indexing.use_index(FakeIndex()))
         super().setUpClass()
 
     def setUp(self) -> None:
