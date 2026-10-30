@@ -6,22 +6,22 @@ from django.urls import reverse
 from opensearchpy.exceptions import ConnectionError as OpenSearchConnectionError
 
 from catalog.models import Author, Book, Language
+from catalog.search import index
+
+from .fakes import FakeIndex
 
 
 class SearchListTests(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        # Never touch a real cluster from tests. This must be in place before setUpTestData
+        # runs, because creating a Book or Author writes to the index.
+        cls.enterClassContext(index.use_index(FakeIndex()))
+        super().setUpClass()
+
     def setUp(self) -> None:
         self.down = OpenSearchConnectionError('N/A', 'cluster unreachable', OSError('connection refused'))
         return super().setUp()
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        # Never touch a real cluster from tests. This must be patched before setUpTestData
-        # runs, because creating a Book or Author fires signals that call index_document().
-        for name in ('index_document', 'delete_document'):
-            patcher = mock.patch(f'catalog.search.{name}')
-            patcher.start()
-            cls.addClassCleanup(patcher.stop)
-        super().setUpClass()
 
     @classmethod
     def setUpTestData(cls) -> None:
