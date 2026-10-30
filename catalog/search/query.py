@@ -3,7 +3,7 @@
 The database stays the source of truth; OpenSearch holds a searchable copy of
 each Book and Author. Indexes use OpenSearch's dynamic mapping, so every string
 field in a document is searchable without declaring a schema. This module reads;
-`indexing` writes.
+`index` writes.
 """
 from functools import cache, reduce
 from operator import or_
@@ -12,7 +12,7 @@ from django.conf import settings
 from django.db.models import Model, Q, QuerySet
 from opensearchpy import OpenSearch
 
-from .models import Author, Book
+from ..models import Author, Book
 
 
 @cache

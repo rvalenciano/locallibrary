@@ -1,7 +1,7 @@
 """Keeps the search index in step with the database.
 
 This module decides which documents a change makes stale and how to write them.
-Signal receivers only report changes; `search` only reads.
+Signal receivers only report changes; `query` only reads.
 """
 import logging
 from collections.abc import Callable, Iterable, Iterator
@@ -12,8 +12,8 @@ from django.db.models import Model, QuerySet
 from opensearchpy import helpers
 from opensearchpy.exceptions import OpenSearchException
 
-from . import search
-from .models import Author, Book, Genre, Language
+from ..models import Author, Book, Genre, Language
+from . import query
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +32,17 @@ class Index(Protocol):
 
 class OpenSearchIndex:
     def recreate(self, model: type[Model]) -> None:
-        client = search.get_client()
-        client.indices.delete(index=search.index_name(model), ignore_unavailable=True)  # pyright: ignore[reportCallIssue]  # stub omits query params
-        client.indices.create(index=search.index_name(model))
+        client = query.get_client()
+        client.indices.delete(index=query.index_name(model), ignore_unavailable=True)  # pyright: ignore[reportCallIssue]  # stub omits query params
+        client.indices.create(index=query.index_name(model))
 
     def write(self, model: type[Model], documents: Iterable[tuple[int, Document]]) -> int:
-        actions = ({"_index": search.index_name(model), "_id": pk, "_source": document} for pk, document in documents)
-        written, _ = helpers.bulk(search.get_client(), actions, refresh=True)
+        actions = ({"_index": query.index_name(model), "_id": pk, "_source": document} for pk, document in documents)
+        written, _ = helpers.bulk(query.get_client(), actions, refresh=True)
         return written
 
     def delete(self, model: type[Model], pk: int) -> None:
-        search.get_client().delete(index=search.index_name(model), id=pk, refresh=True, ignore=[404])  # pyright: ignore[reportCallIssue]  # stub omits query params
+        query.get_client().delete(index=query.index_name(model), id=pk, refresh=True, ignore=[404])  # pyright: ignore[reportCallIssue]  # stub omits query params
 
 
 _index: Index = OpenSearchIndex()
